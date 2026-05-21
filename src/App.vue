@@ -122,22 +122,22 @@ const runQualityCheck = (code) => {
   const source = String(code || '')
 
   if (/location\.reload\s*\(/i.test(source)) {
-    checks.push('location.reload() ?ъ슜 媛먯?: 遺紐??쒖뼱 由ъ뀑怨?異⑸룎?????덉뒿?덈떎.')
+    checks.push('location.reload() 사용 감지: 부모 페이지 제어와 충돌할 수 있습니다.')
   }
   if (/<script[^>]+src=/i.test(source)) {
-    checks.push('?몃? script src 媛먯?: ?ㅽ봽?쇱씤 ?ㅽ뻾怨?蹂댁븞 寃?좉? ?꾩슂?⑸땲??')
+    checks.push('외부 script src 감지: 오프라인 실행과 보안 검토가 필요합니다.')
   }
   if (/<iframe/i.test(source)) {
-    checks.push('寃뚯엫 ?대? iframe 媛먯?: ?낅젰 ?ъ빱?ㅺ? 遺덉븞?뺥븷 ???덉뒿?덈떎.')
+    checks.push('게임 내부 iframe 감지: 입력 포커스가 불안정할 수 있습니다.')
   }
   if ((source.match(/setInterval\s*\(/gi) || []).length > 3) {
-    checks.push('setInterval???щ윭 媛?媛먯??? ?깅뒫 ???媛?μ꽦???덉뒿?덈떎.')
+    checks.push('setInterval이 여러 번 감지됨: 성능 저하 가능성이 있습니다.')
   }
   if (!/requestAnimationFrame|setInterval|setTimeout|addEventListener/i.test(source)) {
-    checks.push('寃뚯엫 猷⑦봽???대깽??泥섎━ 肄붾뱶媛 ?쏀빐 蹂댁엯?덈떎.')
+    checks.push('게임 루프나 이벤트 처리 코드가 부족해 보입니다.')
   }
   if (!/<body[\s>]/i.test(source)) {
-    checks.push('body ?쒓렇媛 紐낇솗?섏? ?딆뒿?덈떎.')
+    checks.push('body 태그가 명확하지 않습니다.')
   }
 
   qualityWarnings.value = checks
@@ -552,7 +552,7 @@ const addImageAssets = async (event) => {
       const approxBytes = Math.round((dataUrl.length * 3) / 4)
 
       if (approxBytes > 900 * 1024) {
-        alert(`${file.name} ?대?吏瑜??뺤텞?덉?留??꾩쭅 ?쎈땲?? ???묒? ?대?吏瑜??ъ슜??二쇱꽭??`)
+        alert(`${file.name} 이미지를 압축했지만 아직 큽니다. 더 작은 이미지를 사용해 주세요.`)
         continue
       }
 
@@ -565,7 +565,7 @@ const addImageAssets = async (event) => {
         type: dataUrl.slice(5, dataUrl.indexOf(';')),
       })
     } catch {
-      alert(`${file.name} ?대?吏瑜??쎌? 紐삵뻽?듬땲??`)
+      alert(`${file.name} 이미지를 읽지 못했습니다.`)
     }
   }
 
@@ -688,7 +688,7 @@ const importProject = async (event) => {
     await applyProjectState(state)
     latestChange.value = '\uc791\uc5c5 JSON\uc744 \ubd88\ub7ec\uc654\uc2b5\ub2c8\ub2e4.'
   } catch {
-    alert('?묒뾽 JSON ?뚯씪???쎌? 紐삵뻽?듬땲??')
+    alert('작업 JSON 파일을 읽지 못했습니다.')
   }
 }
 
@@ -840,8 +840,8 @@ onMounted(() => {
 
         <div class="panel-block quality-note">
           <div class="panel-title">{{ labels.quality }}</div>
-          <p v-if="!generatedCode">寃뚯엫 ?앹꽦 ??肄붾뱶 ?덉쭏 泥댄겕媛 ?쒖떆?⑸땲??</p>
-          <p v-else-if="!qualityWarnings.length">媛먯????꾪뿕 ?붿냼媛 ?놁뒿?덈떎.</p>
+          <p v-if="!generatedCode">게임 생성 후 코드 품질 체크가 표시됩니다.</p>
+          <p v-else-if="!qualityWarnings.length">감지된 위험 요소가 없습니다.</p>
           <ul v-else>
             <li v-for="warning in qualityWarnings" :key="warning">{{ warning }}</li>
           </ul>
