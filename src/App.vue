@@ -20,6 +20,10 @@ const labels = {
   assets: '\uc774\ubbf8\uc9c0 \uc5d0\uc14b',
   addImage: '\uc774\ubbf8\uc9c0 \ucd94\uac00',
   clearAssets: '\uc774\ubbf8\uc9c0 \uc804\uccb4 \uc0ad\uc81c',
+  economyMode: '\ubb34\ub8cc\ud2f0\uc5b4 \uc808\uc57d \ubaa8\ub4dc',
+  requestCount: '\uc624\ub298 \ucd94\uc815 API \ud638\ucd9c',
+  exportProject: '\uc791\uc5c5 JSON \ub0b4\ubcf4\ub0b4\uae30',
+  importProject: '\uc791\uc5c5 JSON \ubd88\ub7ec\uc624\uae30',
   quality: '\ucf54\ub4dc \ud488\uc9c8 \uccb4\ud06c',
   saved: '\uc791\uc5c5 \uc800\uc7a5\ub428',
   clearProject: '\uc791\uc5c5 \ucd08\uae30\ud654',
@@ -54,6 +58,8 @@ const qualityWarnings = ref([])
 const lastSavedAt = ref('')
 const hasHydrated = ref(false)
 const imageAssets = ref([])
+const economyMode = ref(true)
+const estimatedApiCalls = ref(0)
 
 const chatWindow = ref(null)
 const gameIframe = ref(null)
@@ -88,7 +94,7 @@ const assetRoles = [
   { id: 'ui', label: 'UI' },
 ]
 
-const storageKey = 'ai-mini-game-maker-state-v2'
+const storageKey = 'ai-mini-game-maker-state-v3'
 
 const activeModeLabel = computed(() => {
   return editModes.find((mode) => mode.id === editMode.value)?.label || editModes[0].label
@@ -106,7 +112,7 @@ const makeVersionTitle = (prompt) => {
 const makeSafeFilename = (name) => {
   return String(name || 'ai_mini_game')
     .toLowerCase()
-    .replace(/[^a-z0-9가-힣_-]+/gi, '_')
+    .replace(/[^\p{L}\p{N}_-]+/gu, '_')
     .replace(/^_+|_+$/g, '')
     .slice(0, 48) || 'ai_mini_game'
 }
@@ -116,22 +122,22 @@ const runQualityCheck = (code) => {
   const source = String(code || '')
 
   if (/location\.reload\s*\(/i.test(source)) {
-    checks.push('location.reload() 사용 감지: 부모 리셋 방식과 충돌할 수 있습니다.')
+    checks.push('location.reload() ?ъ슜 媛먯?: 遺紐??쒖뼱 由ъ뀑怨?異⑸룎?????덉뒿?덈떎.')
   }
   if (/<script[^>]+src=/i.test(source)) {
-    checks.push('외부 script src 감지: 오프라인 실행이나 보안 검토가 필요합니다.')
+    checks.push('?몃? script src 媛먯?: ?ㅽ봽?쇱씤 ?ㅽ뻾怨?蹂댁븞 寃?좉? ?꾩슂?⑸땲??')
   }
   if (/<iframe/i.test(source)) {
-    checks.push('게임 내부 iframe 감지: 중첩 실행으로 입력 포커스가 불안정할 수 있습니다.')
+    checks.push('寃뚯엫 ?대? iframe 媛먯?: ?낅젰 ?ъ빱?ㅺ? 遺덉븞?뺥븷 ???덉뒿?덈떎.')
   }
   if ((source.match(/setInterval\s*\(/gi) || []).length > 3) {
-    checks.push('setInterval이 여러 개 감지됨: 성능 저하 가능성이 있습니다.')
+    checks.push('setInterval???щ윭 媛?媛먯??? ?깅뒫 ???媛?μ꽦???덉뒿?덈떎.')
   }
   if (!/requestAnimationFrame|setInterval|setTimeout|addEventListener/i.test(source)) {
-    checks.push('게임 루프나 이벤트 처리 코드가 약해 보입니다.')
+    checks.push('寃뚯엫 猷⑦봽???대깽??泥섎━ 肄붾뱶媛 ?쏀빐 蹂댁엯?덈떎.')
   }
   if (!/<body[\s>]/i.test(source)) {
-    checks.push('body 태그가 명확하지 않습니다.')
+    checks.push('body ?쒓렇媛 紐낇솗?섏? ?딆뒿?덈떎.')
   }
 
   qualityWarnings.value = checks
@@ -150,6 +156,8 @@ const saveState = () => {
     editMode: editMode.value,
     qualityWarnings: qualityWarnings.value,
     imageAssets: imageAssets.value,
+    economyMode: economyMode.value,
+    estimatedApiCalls: estimatedApiCalls.value,
   }
 
   localStorage.setItem(storageKey, JSON.stringify(state))
@@ -160,7 +168,7 @@ const saveState = () => {
 }
 
 const loadState = async () => {
-  const raw = localStorage.getItem(storageKey)
+  const raw = localStorage.getItem(storageKey) || localStorage.getItem('ai-mini-game-maker-state-v2')
   if (!raw) {
     hasHydrated.value = true
     return
@@ -179,6 +187,8 @@ const loadState = async () => {
     editMode.value = state.editMode || editMode.value
     qualityWarnings.value = Array.isArray(state.qualityWarnings) ? state.qualityWarnings : []
     imageAssets.value = Array.isArray(state.imageAssets) ? state.imageAssets : []
+    economyMode.value = typeof state.economyMode === 'boolean' ? state.economyMode : economyMode.value
+    estimatedApiCalls.value = Number(state.estimatedApiCalls || 0)
 
     if (generatedCode.value) {
       runQualityCheck(generatedCode.value)
@@ -203,6 +213,8 @@ const clearProject = () => {
   gameTitle.value = 'AI Mini Game'
   qualityWarnings.value = []
   imageAssets.value = []
+  economyMode.value = true
+  estimatedApiCalls.value = 0
   renderIssue.value = ''
   iframeKey.value += 1
   lastSavedAt.value = ''
@@ -340,6 +352,7 @@ const requestGameCode = async ({ requestText, currentCode }) => {
       request: requestText,
       currentCode,
       assets: imageAssets.value,
+      includeMetadata: !economyMode.value,
     }),
   })
 
@@ -350,41 +363,43 @@ const requestGameCode = async ({ requestText, currentCode }) => {
     throw apiError
   }
 
-  return response.json()
+  const data = await response.json()
+  estimatedApiCalls.value += data.metadataGenerated ? 2 : 1
+  return data
 }
 
 const composeRequest = (requestText, hadGeneratedCode) => {
   const assetPrompt = imageAssets.value.length
     ? `
 
-[첨부 이미지 에셋]
+[Attached image assets]
 ${imageAssets.value
   .map((asset, index) => {
-    return `- asset_${index + 1}: 역할=${getAssetRoleLabel(asset.role)}, 이름=${asset.name}, dataUrl=${asset.dataUrl}`
+    return `- asset_${index + 1}: role=${getAssetRoleLabel(asset.role)}, name=${asset.name}, dataUrl=${asset.dataUrl}`
   })
   .join('\n')}
 
-이미지 에셋 지침:
-- 위 dataUrl을 HTML 내부 상수 또는 img src로 그대로 포함한다.
-- 배경 이미지는 화면을 덮되 게임 UI를 가리지 않게 처리한다.
-- 플레이어/적/아이템 이미지는 canvas drawImage 또는 img 요소로 실제 게임 오브젝트에 사용한다.
-- 내보낸 단일 HTML 파일만으로 이미지가 보이도록 외부 URL에 의존하지 않는다.
+Image asset rules:
+- Embed each dataUrl directly in the returned single HTML file.
+- Use background assets as backdrops without hiding the game UI.
+- Use player, enemy, item, and UI assets as real game objects when relevant.
+- If using canvas, load assets with Image() and draw them with drawImage after load.
 `
     : ''
 
   if (!hadGeneratedCode) return `${requestText}${assetPrompt}`
 
   return `
-[수정 모드: ${activeModeLabel.value}]
+[Edit mode: ${activeModeLabel.value}]
 ${requestText}
 ${assetPrompt}
 
-모드 지침:
-- 기능 추가: 기존 플레이 감각을 유지하면서 새 기능을 자연스럽게 통합한다.
-- 버그 수정: 불필요한 디자인 변경보다 문제 해결과 안정성을 우선한다.
-- 밸런스 조정: 난이도, 속도, 점수, 시간 흐름을 플레이 가능하게 다듬는다.
-- 디자인 개선: 정보 구조, 가독성, 시각적 완성도를 높인다.
-- 모바일 최적화: 터치 조작, 화면 크기, 버튼 배치를 개선한다.
+Mode guide:
+- Feature: integrate new mechanics while preserving the current game feel.
+- Bug fix: prioritize stability and the reported problem over visual changes.
+- Balance: tune difficulty, speed, scoring, and time flow for playability.
+- Visual: improve layout, readability, polish, and visual hierarchy.
+- Mobile: improve touch controls, responsive sizing, and button placement.
 `
 }
 
@@ -493,6 +508,35 @@ const applyPreset = (text) => {
   sendMessage(text)
 }
 
+const compressImageFile = async (file) => {
+  const imageUrl = URL.createObjectURL(file)
+
+  try {
+    const image = await new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => resolve(img)
+      img.onerror = reject
+      img.src = imageUrl
+    })
+
+    const maxSide = 900
+    const scale = Math.min(1, maxSide / Math.max(image.width, image.height))
+    const width = Math.max(1, Math.round(image.width * scale))
+    const height = Math.max(1, Math.round(image.height * scale))
+    const canvas = document.createElement('canvas')
+    const context = canvas.getContext('2d')
+
+    canvas.width = width
+    canvas.height = height
+    context.drawImage(image, 0, 0, width, height)
+
+    const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg'
+    return canvas.toDataURL(mimeType, 0.78)
+  } finally {
+    URL.revokeObjectURL(imageUrl)
+  }
+}
+
 const addImageAssets = async (event) => {
   const files = Array.from(event.target.files || [])
   event.target.value = ''
@@ -502,31 +546,31 @@ const addImageAssets = async (event) => {
 
   for (const file of files.slice(0, 5)) {
     if (!file.type.startsWith('image/')) continue
-    if (file.size > 700 * 1024) {
-      alert(`${file.name} 파일이 너무 큽니다. 700KB 이하 이미지를 사용해 주세요.`)
-      continue
+
+    try {
+      const dataUrl = await compressImageFile(file)
+      const approxBytes = Math.round((dataUrl.length * 3) / 4)
+
+      if (approxBytes > 900 * 1024) {
+        alert(`${file.name} ?대?吏瑜??뺤텞?덉?留??꾩쭅 ?쎈땲?? ???묒? ?대?吏瑜??ъ슜??二쇱꽭??`)
+        continue
+      }
+
+      nextAssets.push({
+        id: `${Date.now()}-${file.name}-${nextAssets.length}`,
+        name: file.name,
+        role: nextAssets.length === 0 && !imageAssets.value.length ? 'player' : 'item',
+        dataUrl,
+        size: approxBytes,
+        type: dataUrl.slice(5, dataUrl.indexOf(';')),
+      })
+    } catch {
+      alert(`${file.name} ?대?吏瑜??쎌? 紐삵뻽?듬땲??`)
     }
-
-    const dataUrl = await new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(String(reader.result))
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
-
-    nextAssets.push({
-      id: `${Date.now()}-${file.name}-${nextAssets.length}`,
-      name: file.name,
-      role: nextAssets.length === 0 && !imageAssets.value.length ? 'player' : 'item',
-      dataUrl,
-      size: file.size,
-      type: file.type,
-    })
   }
 
   imageAssets.value = [...imageAssets.value, ...nextAssets].slice(0, 8)
 }
-
 const updateAssetRole = (assetId, role) => {
   imageAssets.value = imageAssets.value.map((asset) => {
     return asset.id === assetId ? { ...asset, role } : asset
@@ -576,6 +620,78 @@ const exportFile = () => {
   URL.revokeObjectURL(url)
 }
 
+const buildProjectState = () => {
+  return {
+    exportedAt: new Date().toISOString(),
+    app: 'ai-mini-game-maker',
+    version: 1,
+    generatedCode: generatedCode.value,
+    chatHistory: chatHistory.value,
+    versionHistory: versionHistory.value,
+    activeVersionId: activeVersionId.value,
+    latestChange: latestChange.value,
+    gameTitle: gameTitle.value,
+    editMode: editMode.value,
+    qualityWarnings: qualityWarnings.value,
+    imageAssets: imageAssets.value,
+    economyMode: economyMode.value,
+    estimatedApiCalls: estimatedApiCalls.value,
+  }
+}
+
+const applyProjectState = async (state) => {
+  generatedCode.value = state.generatedCode || ''
+  chatHistory.value = Array.isArray(state.chatHistory) && state.chatHistory.length
+    ? state.chatHistory
+    : [{ role: 'assistant', content: labels.firstGuide }]
+  versionHistory.value = Array.isArray(state.versionHistory) ? state.versionHistory : []
+  activeVersionId.value = state.activeVersionId || null
+  latestChange.value = state.latestChange || '\uc544\uc9c1 \ubcc0\uacbd \uae30\ub85d\uc774 \uc5c6\uc2b5\ub2c8\ub2e4.'
+  gameTitle.value = state.gameTitle || 'AI Mini Game'
+  editMode.value = state.editMode || 'feature'
+  qualityWarnings.value = Array.isArray(state.qualityWarnings) ? state.qualityWarnings : []
+  imageAssets.value = Array.isArray(state.imageAssets) ? state.imageAssets : []
+  economyMode.value = typeof state.economyMode === 'boolean' ? state.economyMode : true
+  estimatedApiCalls.value = Number(state.estimatedApiCalls || 0)
+
+  if (generatedCode.value) {
+    runQualityCheck(generatedCode.value)
+    await renderGameCode(generatedCode.value, { remount: true })
+  } else {
+    iframeKey.value += 1
+  }
+}
+
+const exportProject = () => {
+  const blob = new Blob([JSON.stringify(buildProjectState(), null, 2)], {
+    type: 'application/json;charset=utf-8',
+  })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+
+  link.href = url
+  link.download = `${makeSafeFilename(gameTitle.value)}_project.json`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
+const importProject = async (event) => {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+
+  try {
+    const text = await file.text()
+    const state = JSON.parse(text)
+    await applyProjectState(state)
+    latestChange.value = '\uc791\uc5c5 JSON\uc744 \ubd88\ub7ec\uc654\uc2b5\ub2c8\ub2e4.'
+  } catch {
+    alert('?묒뾽 JSON ?뚯씪???쎌? 紐삵뻽?듬땲??')
+  }
+}
+
 watch(
   [
     generatedCode,
@@ -587,6 +703,8 @@ watch(
     editMode,
     qualityWarnings,
     imageAssets,
+    economyMode,
+    estimatedApiCalls,
   ],
   () => {
     saveState()
@@ -661,8 +779,26 @@ onMounted(() => {
                   </option>
                 </select>
               </div>
-              <button type="button" :disabled="isLoading" @click="removeAsset(asset.id)">×</button>
+              <button type="button" :disabled="isLoading" @click="removeAsset(asset.id)">횞</button>
             </article>
+          </div>
+        </div>
+
+        <div class="panel-block utility-panel">
+          <div class="panel-title">{{ labels.requestCount }}</div>
+          <div class="usage-row">
+            <strong>{{ estimatedApiCalls }}</strong>
+            <label>
+              <input v-model="economyMode" type="checkbox" />
+              {{ labels.economyMode }}
+            </label>
+          </div>
+          <div class="project-actions">
+            <button type="button" @click="exportProject">{{ labels.exportProject }}</button>
+            <label>
+              {{ labels.importProject }}
+              <input type="file" accept="application/json,.json" @change="importProject" />
+            </label>
           </div>
         </div>
 
@@ -704,8 +840,8 @@ onMounted(() => {
 
         <div class="panel-block quality-note">
           <div class="panel-title">{{ labels.quality }}</div>
-          <p v-if="!generatedCode">게임 생성 후 코드 품질 체크가 표시됩니다.</p>
-          <p v-else-if="!qualityWarnings.length">감지된 위험 요소가 없습니다.</p>
+          <p v-if="!generatedCode">寃뚯엫 ?앹꽦 ??肄붾뱶 ?덉쭏 泥댄겕媛 ?쒖떆?⑸땲??</p>
+          <p v-else-if="!qualityWarnings.length">媛먯????꾪뿕 ?붿냼媛 ?놁뒿?덈떎.</p>
           <ul v-else>
             <li v-for="warning in qualityWarnings" :key="warning">{{ warning }}</li>
           </ul>
@@ -1039,6 +1175,59 @@ textarea {
   cursor: pointer;
   font-size: 18px;
   line-height: 1;
+}
+
+.utility-panel {
+  padding: 10px 12px;
+  border: 1px solid #3c3c3c;
+  border-radius: 8px;
+  background: #181818;
+}
+
+.usage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  color: #d6d6d6;
+  font-size: 12px;
+}
+
+.usage-row strong {
+  color: #a7f3d0;
+  font-size: 18px;
+}
+
+.usage-row label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.project-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.project-actions button,
+.project-actions label {
+  display: grid;
+  place-items: center;
+  min-height: 34px;
+  border: 1px solid #414141;
+  border-radius: 8px;
+  background: #292929;
+  color: #ededed;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.project-actions input {
+  display: none;
 }
 
 .preset-grid {

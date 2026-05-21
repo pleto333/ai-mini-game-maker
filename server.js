@@ -211,6 +211,7 @@ app.post('/api/generate-game', async (req, res) => {
   const request = String(req.body?.request || '').trim()
   const currentCode = String(req.body?.currentCode || '')
   const assets = Array.isArray(req.body?.assets) ? req.body.assets : []
+  const includeMetadata = req.body?.includeMetadata !== false
 
   if (!request) {
     return res.status(400).json({ error: 'request is required.' })
@@ -226,9 +227,17 @@ app.post('/api/generate-game', async (req, res) => {
       })
     }
 
-    const metadata = await generateMetadata({ request, currentCode, html })
+    const metadata = includeMetadata
+      ? await generateMetadata({ request, currentCode, html })
+      : {
+          title: currentCode ? '수정된 미니 게임' : '새 미니 게임',
+          summary: currentCode
+            ? '절약 모드로 요청을 반영해 게임을 수정했습니다.'
+            : '절약 모드로 새 게임을 생성했습니다.',
+          mode: currentCode ? 'revision' : 'creation',
+        }
 
-    res.json({ html, metadata })
+    res.json({ html, metadata, metadataGenerated: includeMetadata })
   } catch (error) {
     const status = Number(getErrorStatus(error)) || 500
     const safeStatus = status >= 400 && status < 600 ? status : 500
