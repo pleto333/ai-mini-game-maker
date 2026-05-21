@@ -724,113 +724,126 @@ onMounted(() => {
         </article>
       </div>
 
-      <section class="quick-panel">
-        <div class="panel-block asset-panel">
-          <div class="panel-title">{{ labels.assets }}</div>
-          <div class="asset-actions">
-            <label class="asset-upload">
-              {{ labels.addImage }}
-              <input type="file" accept="image/*" multiple @change="addImageAssets" />
-            </label>
-            <button
-              type="button"
-              :disabled="!imageAssets.length || isLoading"
-              @click="imageAssets = []"
-            >
-              {{ labels.clearAssets }}
-            </button>
-          </div>
+      <details class="quick-drawer">
+        <summary>
+          <span class="drawer-title">도구 패널</span>
+          <span class="drawer-pill">{{ labels.assets }} {{ imageAssets.length }}</span>
+          <span class="drawer-pill">{{ labels.requestCount }} {{ estimatedApiCalls }}</span>
+          <span v-if="generatedCode" class="drawer-pill">{{ activeModeLabel }}</span>
+          <span class="drawer-state">
+            <span class="drawer-open-label">접기</span>
+            <span class="drawer-closed-label">펼치기</span>
+          </span>
+        </summary>
 
-          <div v-if="imageAssets.length" class="asset-list">
-            <article v-for="asset in imageAssets" :key="asset.id" class="asset-item">
-              <img :src="asset.dataUrl" :alt="asset.name" />
-              <div class="asset-info">
-                <strong>{{ asset.name }}</strong>
-                <select
-                  :value="asset.role"
-                  :disabled="isLoading"
-                  @change="updateAssetRole(asset.id, $event.target.value)"
-                >
-                  <option v-for="role in assetRoles" :key="role.id" :value="role.id">
-                    {{ role.label }}
-                  </option>
-                </select>
-              </div>
+        <section class="quick-panel">
+          <div class="panel-block asset-panel">
+            <div class="panel-title">{{ labels.assets }}</div>
+            <div class="asset-actions">
+              <label class="asset-upload">
+                {{ labels.addImage }}
+                <input type="file" accept="image/*" multiple @change="addImageAssets" />
+              </label>
               <button
                 type="button"
-                :aria-label="`${asset.name} 이미지 삭제`"
-                :disabled="isLoading"
-                @click="removeAsset(asset.id)"
+                :disabled="!imageAssets.length || isLoading"
+                @click="imageAssets = []"
               >
-                <span aria-hidden="true">&times;</span>
+                {{ labels.clearAssets }}
               </button>
-            </article>
-          </div>
-        </div>
+            </div>
 
-        <div class="panel-block utility-panel">
-          <div class="panel-title">{{ labels.requestCount }}</div>
-          <div class="usage-row">
-            <strong>{{ estimatedApiCalls }}</strong>
-            <label>
-              <input v-model="economyMode" type="checkbox" />
-              {{ labels.economyMode }}
-            </label>
+            <div v-if="imageAssets.length" class="asset-list">
+              <article v-for="asset in imageAssets" :key="asset.id" class="asset-item">
+                <img :src="asset.dataUrl" :alt="asset.name" />
+                <div class="asset-info">
+                  <strong>{{ asset.name }}</strong>
+                  <select
+                    :value="asset.role"
+                    :disabled="isLoading"
+                    @change="updateAssetRole(asset.id, $event.target.value)"
+                  >
+                    <option v-for="role in assetRoles" :key="role.id" :value="role.id">
+                      {{ role.label }}
+                    </option>
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  :aria-label="`${asset.name} 이미지 삭제`"
+                  :disabled="isLoading"
+                  @click="removeAsset(asset.id)"
+                >
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </article>
+            </div>
           </div>
-          <div class="project-actions">
-            <button type="button" @click="exportProject">{{ labels.exportProject }}</button>
-            <label>
-              {{ labels.importProject }}
-              <input type="file" accept="application/json,.json" @change="importProject" />
-            </label>
+
+          <div class="panel-block utility-panel">
+            <div class="panel-title">{{ labels.requestCount }}</div>
+            <div class="usage-row">
+              <strong>{{ estimatedApiCalls }}</strong>
+              <label>
+                <input v-model="economyMode" type="checkbox" />
+                {{ labels.economyMode }}
+              </label>
+            </div>
+            <div class="project-actions">
+              <button type="button" @click="exportProject">{{ labels.exportProject }}</button>
+              <label>
+                {{ labels.importProject }}
+                <input type="file" accept="application/json,.json" @change="importProject" />
+              </label>
+            </div>
           </div>
-        </div>
 
-        <div v-if="generatedCode" class="panel-block">
-          <div class="panel-title">{{ labels.mode }}</div>
-          <div class="mode-grid">
-            <button
-              v-for="mode in editModes"
-              :key="mode.id"
-              type="button"
-              :class="{ active: editMode === mode.id }"
-              :disabled="isLoading"
-              @click="editMode = mode.id"
-            >
-              {{ mode.label }}
-            </button>
+          <div v-if="generatedCode" class="panel-block">
+            <div class="panel-title">{{ labels.mode }}</div>
+            <div class="mode-grid">
+              <button
+                v-for="mode in editModes"
+                :key="mode.id"
+                type="button"
+                :class="{ active: editMode === mode.id }"
+                :disabled="isLoading"
+                @click="editMode = mode.id"
+              >
+                {{ mode.label }}
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div class="panel-block">
-          <div class="panel-title">{{ generatedCode ? labels.upgrades : labels.presets }}</div>
-          <div class="preset-grid">
-            <button
-              v-for="preset in generatedCode ? upgradePresets : creationPresets"
-              :key="preset"
-              type="button"
-              :disabled="isLoading"
-              @click="applyPreset(preset)"
-            >
-              {{ preset }}
-            </button>
+          <div class="panel-block">
+            <div class="panel-title">{{ generatedCode ? labels.upgrades : labels.presets }}</div>
+            <div class="preset-grid">
+              <button
+                v-for="preset in generatedCode ? upgradePresets : creationPresets"
+                :key="preset"
+                type="button"
+                :disabled="isLoading"
+                @click="applyPreset(preset)"
+              >
+                {{ preset }}
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div class="panel-block change-note">
-          <div class="panel-title">{{ labels.changeSummary }}</div>
-          <p>{{ latestChange }}</p>
-        </div>
+          <div class="panel-block change-note">
+            <div class="panel-title">{{ labels.changeSummary }}</div>
+            <p>{{ latestChange }}</p>
+          </div>
 
-        <div class="panel-block quality-note">
-          <div class="panel-title">{{ labels.quality }}</div>
-          <p v-if="!generatedCode">게임 생성 후 코드 품질 체크가 표시됩니다.</p>
-          <p v-else-if="!qualityWarnings.length">감지된 위험 요소가 없습니다.</p>
-          <ul v-else>
-            <li v-for="warning in qualityWarnings" :key="warning">{{ warning }}</li>
-          </ul>
-        </div>
-      </section>
+          <div class="panel-block quality-note">
+            <div class="panel-title">{{ labels.quality }}</div>
+            <p v-if="!generatedCode">게임 생성 후 코드 품질 체크가 표시됩니다.</p>
+            <p v-else-if="!qualityWarnings.length">감지된 위험 요소가 없습니다.</p>
+            <ul v-else>
+              <li v-for="warning in qualityWarnings" :key="warning">{{ warning }}</li>
+            </ul>
+          </div>
+        </section>
+      </details>
 
       <form class="composer" @submit.prevent="sendMessage()">
         <textarea
@@ -966,7 +979,7 @@ textarea {
 
 .prompt-pane {
   display: grid;
-  grid-template-rows: auto 1fr auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   border-right: 1px solid #343434;
   background: #202020;
 }
@@ -1052,12 +1065,84 @@ textarea {
   animation: dots 1.2s steps(4, end) infinite;
 }
 
+.quick-drawer {
+  border-top: 1px solid #343434;
+  background: #202020;
+}
+
+.quick-drawer summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.quick-drawer summary::-webkit-details-marker {
+  display: none;
+}
+
+.quick-drawer[open] summary {
+  border-bottom: 1px solid #343434;
+}
+
+.drawer-title {
+  color: #f4f4f5;
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.drawer-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  max-width: 150px;
+  padding: 0 8px;
+  border: 1px solid #414141;
+  border-radius: 999px;
+  background: #181818;
+  color: #cfcfcf;
+  font-size: 11px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawer-state {
+  margin-left: auto;
+  color: #a7f3d0;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.drawer-open-label {
+  display: none;
+}
+
+.quick-drawer[open] .drawer-open-label {
+  display: inline;
+}
+
+.quick-drawer[open] .drawer-closed-label {
+  display: none;
+}
+
 .quick-panel {
   display: grid;
   gap: 10px;
+  height: min(34vh, 320px);
+  min-height: 150px;
+  max-height: 46vh;
   padding: 14px 18px;
-  border-top: 1px solid #343434;
-  background: #202020;
+  overflow-y: auto;
+  resize: vertical;
+  scrollbar-color: #5a5a5a #252525;
 }
 
 .panel-block {
@@ -1588,7 +1673,18 @@ textarea {
   }
 
   .quick-panel {
+    height: min(30vh, 260px);
+    min-height: 130px;
     padding: 10px 12px;
+  }
+
+  .quick-drawer summary {
+    min-height: 42px;
+    padding: 0 12px;
+  }
+
+  .drawer-pill {
+    max-width: 112px;
   }
 
   .preset-grid {
