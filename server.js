@@ -265,6 +265,15 @@ app.post('/api/generate-game', async (req, res) => {
   }
 })
 
+app.get('/api/health', (req, res) => {
+  res.json({
+    ok: true,
+    provider,
+    geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+    openaiConfigured: Boolean(process.env.OPENAI_API_KEY),
+  })
+})
+
 app.use(express.static(path.join(__dirname, 'dist')))
 
 app.get('*', (req, res) => {
