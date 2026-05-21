@@ -100,10 +100,6 @@ const activeModeLabel = computed(() => {
   return editModes.find((mode) => mode.id === editMode.value)?.label || editModes[0].label
 })
 
-const getAssetRoleLabel = (role) => {
-  return assetRoles.find((assetRole) => assetRole.id === role)?.label || role
-}
-
 const makeVersionTitle = (prompt) => {
   const normalized = prompt.replace(/\s+/g, ' ').trim()
   return normalized.length > 26 ? `${normalized.slice(0, 26)}...` : normalized
@@ -369,30 +365,11 @@ const requestGameCode = async ({ requestText, currentCode }) => {
 }
 
 const composeRequest = (requestText, hadGeneratedCode) => {
-  const assetPrompt = imageAssets.value.length
-    ? `
-
-[Attached image assets]
-${imageAssets.value
-  .map((asset, index) => {
-    return `- asset_${index + 1}: role=${getAssetRoleLabel(asset.role)}, name=${asset.name}, dataUrl=${asset.dataUrl}`
-  })
-  .join('\n')}
-
-Image asset rules:
-- Embed each dataUrl directly in the returned single HTML file.
-- Use background assets as backdrops without hiding the game UI.
-- Use player, enemy, item, and UI assets as real game objects when relevant.
-- If using canvas, load assets with Image() and draw them with drawImage after load.
-`
-    : ''
-
-  if (!hadGeneratedCode) return `${requestText}${assetPrompt}`
+  if (!hadGeneratedCode) return requestText
 
   return `
 [Edit mode: ${activeModeLabel.value}]
 ${requestText}
-${assetPrompt}
 
 Mode guide:
 - Feature: integrate new mechanics while preserving the current game feel.
@@ -779,7 +756,14 @@ onMounted(() => {
                   </option>
                 </select>
               </div>
-              <button type="button" :disabled="isLoading" @click="removeAsset(asset.id)">횞</button>
+              <button
+                type="button"
+                :aria-label="`${asset.name} 이미지 삭제`"
+                :disabled="isLoading"
+                @click="removeAsset(asset.id)"
+              >
+                <span aria-hidden="true">&times;</span>
+              </button>
             </article>
           </div>
         </div>

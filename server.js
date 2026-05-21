@@ -18,7 +18,7 @@ const openAiModel = process.env.OPENAI_MODEL || 'gpt-5-mini'
 const geminiModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
 
 app.use(cors())
-app.use(express.json({ limit: '2mb' }))
+app.use(express.json({ limit: '8mb' }))
 
 const buildInitialPrompt = (request) => `
 You are a senior frontend game developer who specializes in HTML5 mini games.
@@ -57,41 +57,55 @@ Follow these rules exactly:
 - Do not use location.reload() inside the game.
 `
 
-const buildAssetPrompt = (assets) => {
-  if (!Array.isArray(assets) || !assets.length) return ''
+const buildSafeAssets = (assets) => {
+  if (!Array.isArray(assets) || !assets.length) return []
 
-  const safeAssets = assets.slice(0, 8).map((asset, index) => {
+  return assets.slice(0, 8).map((asset, index) => {
     return {
       id: `asset_${index + 1}`,
       name: String(asset.name || `asset_${index + 1}`).slice(0, 80),
       role: String(asset.role || 'item').slice(0, 30),
+      placeholder: `__ASSET_${index + 1}_DATA_URL__`,
       dataUrl: String(asset.dataUrl || ''),
     }
   }).filter((asset) => asset.dataUrl.startsWith('data:image/'))
+}
 
+const buildAssetPrompt = (safeAssets) => {
   if (!safeAssets.length) return ''
+
+  const assetRows = safeAssets.map((asset) => {
+    return `- ${asset.id}: role=${asset.role}, name=${asset.name}, source=${asset.placeholder}`
+  }).join('\n')
 
   return `
 
 [Embedded image assets]
-Use these images directly in the single HTML output. Do not replace them with external URLs.
-${safeAssets.map((asset) => {
-  return `- ${asset.id}: role=${asset.role}, name=${asset.name}, dataUrl=${asset.dataUrl}`
-}).join('\n')}
+Use these image placeholders directly in the single HTML output. The server will replace each placeholder with the real embedded data URL after you answer.
+${assetRows}
 
 Asset rules:
-- Keep every needed image embedded in the returned HTML using the provided dataUrl values.
+- Use every listed asset as a visible part of the game unless the user's request clearly makes it irrelevant.
+- Use the placeholder string exactly as an image source. Do not invent external URLs, file paths, or new base64 strings.
 - Use background assets as visual backdrops without hiding UI.
 - Use player, enemy, item, and UI assets as real game objects when relevant.
 - If drawing on canvas, load assets with Image() and draw them with drawImage after load.
+- If using DOM elements, set img src or CSS background-image to the matching placeholder.
 `
 }
 
-const buildGamePrompt = ({ request, currentCode, assets }) => {
-  const assetPrompt = buildAssetPrompt(assets)
+const buildGamePrompt = ({ request, currentCode, safeAssets = [] }) => {
+  const assetPrompt = buildAssetPrompt(safeAssets)
+
   return currentCode
     ? `${buildRevisionPrompt(request, currentCode)}${assetPrompt}`
     : `${buildInitialPrompt(request)}${assetPrompt}`
+}
+
+const embedAssetPlaceholders = (html, assets) => {
+  return assets.reduce((nextHtml, asset) => {
+    return nextHtml.split(asset.placeholder).join(asset.dataUrl)
+  }, html)
 }
 
 const buildMetadataPrompt = ({ request, currentCode, html }) => `
@@ -218,8 +232,9 @@ app.post('/api/generate-game', async (req, res) => {
   }
 
   try {
-    const prompt = buildGamePrompt({ request, currentCode, assets })
-    const html = cleanGeneratedHtml(await generateHtml(prompt))
+    const safeAssets = buildSafeAssets(assets)
+    const prompt = buildGamePrompt({ request, currentCode, safeAssets })
+    const html = embedAssetPlaceholders(cleanGeneratedHtml(await generateHtml(prompt)), safeAssets)
 
     if (!html || !/^<!doctype html>/i.test(html)) {
       return res.status(502).json({
